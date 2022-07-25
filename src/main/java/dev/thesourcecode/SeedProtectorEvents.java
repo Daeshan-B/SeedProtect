@@ -1,4 +1,4 @@
-package dev.thesourcecode.seeds;
+package dev.thesourcecode;
 
 import org.bukkit.Location;
 import org.bukkit.Material;
@@ -26,43 +26,6 @@ public class SeedProtectorEvents implements Listener {
     public SeedProtectorEvents(Map<Player, Instant> cropMessage) {
         this.cropMessage = cropMessage;
     }
-
-
-    //TODO Prevent water breaking plants
-/*
-    @EventHandler
-    public void onWaterPassThrough(BlockFromToEvent event) {
-        final Block block = event.getToBlock();
-        final Location blockLocation = block.getLocation();
-
-        if (isCrop(block)) {
-            if (block.getType() == Material.WHEAT) {
-                block.getDrops().forEach(drop -> {
-                    blockLocation.getWorld().dropItem(blockLocation, drop);
-                });
-                block.setType(Material.WHEAT);
-                return;
-            }
-
-            block.getDrops().forEach(drop -> {
-                switch (drop.getType()) {
-                    case WHEAT_SEEDS:
-                    case BEETROOT_SEEDS:
-                    case CARROTS:
-                    case POTATOES:
-                    case NETHER_WART:
-                        drop.setAmount(drop.getAmount() - 1);
-                        break;
-                }
-                blockLocation.getWorld().dropItem(blockLocation, drop);
-            });
-
-            block.setType(block.getType());
-            spawnParticles(block.getLocation());
-            event.setCancelled(true);
-        }
-    }
-*/
 
     @EventHandler
     private void farmBreak(BlockBreakEvent event) {
@@ -172,4 +135,40 @@ public class SeedProtectorEvents implements Listener {
             default -> false;
         };
     }
+
+    //TODO Prevent water breaking plants
+/*
+    @EventHandler
+    public void onWaterPassThrough(BlockFromToEvent event) {
+        final Block block = event.getToBlock();
+        final Location blockLocation = block.getLocation();
+
+        if (isCrop(block)) {
+            if (block.getType() == Material.WHEAT) {
+                block.getDrops().forEach(drop -> {
+                    blockLocation.getWorld().dropItem(blockLocation, drop);
+                });
+                block.setType(Material.WHEAT);
+                return;
+            }
+
+            block.getDrops().forEach(drop -> {
+                switch (drop.getType()) {
+                    case WHEAT_SEEDS:
+                    case BEETROOT_SEEDS:
+                    case CARROTS:
+                    case POTATOES:
+                    case NETHER_WART:
+                        drop.setAmount(drop.getAmount() - 1);
+                        break;
+                }
+                blockLocation.getWorld().dropItem(blockLocation, drop);
+            });
+
+            block.setType(block.getType());
+            spawnParticles(block.getLocation());
+            event.setCancelled(true);
+        }
+    }
+*/
 }

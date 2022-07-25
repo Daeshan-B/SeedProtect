@@ -1,4 +1,4 @@
-package dev.thesourcecode.seeds;
+package dev.thesourcecode;
 
 import org.bukkit.ChatColor;
 import org.bukkit.Server;

@@ -1,4 +1,4 @@
-package dev.thesourcecode.seeds;
+package dev.thesourcecode;
 
 import org.bukkit.Bukkit;
 import org.bukkit.entity.Player;
@@ -8,8 +8,8 @@ import java.time.Instant;
 import java.util.IdentityHashMap;
 import java.util.Map;
 
-public final class SeedProtect extends JavaPlugin {
-    private final Map<Player, Instant> cropMessage = new IdentityHashMap<>();
+public class SeedProtector extends JavaPlugin {
+    private Map<Player, Instant> cropMessage = new IdentityHashMap<>();
 
     @Override
     public void onDisable() {
@@ -18,6 +18,7 @@ public final class SeedProtect extends JavaPlugin {
 
     @Override
     public void onEnable() {
-        Bukkit.getPluginManager().registerEvents(new SeedProtectEvents(cropMessage), this);
+
+        Bukkit.getPluginManager().registerEvents(new SeedProtectorEvents(cropMessage), this);
     }
 }
