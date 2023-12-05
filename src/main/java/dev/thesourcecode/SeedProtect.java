@@ -10,7 +10,7 @@ import java.util.IdentityHashMap;
 import java.util.Map;
 
 
-public class SeedProtector extends JavaPlugin {
+public class SeedProtect extends JavaPlugin {
     private Map<Player, Instant> cropMessage = new IdentityHashMap<>();
 
     @Override

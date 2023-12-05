@@ -1,4 +1,4 @@
-name: ${project.artifactId}
-version: ${project.version}
-main: ${project.groupId}.${project.artifactId}
+name: SeedProtect
+version: 4.0.1
+main: dev.thesourcecode.SeedProtect
 api-version: 1.19

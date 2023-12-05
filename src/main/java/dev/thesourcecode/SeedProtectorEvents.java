@@ -67,7 +67,7 @@ public class SeedProtectorEvents implements Listener {
         if (dropChance <= chancePercent) {
             World world = location.getWorld();
             world.spawn(location, ExperienceOrb.class).setExperience(experienceDrop);
-            MessageManager.good(player, "You gained &a+" + experienceDrop + " Experience");
+            MessageManager.good(player, "You gained +" + experienceDrop + " Experience");
             spawnParticles(location);
         }
     }
