@@ -1,26 +1,33 @@
 package dev.thesourcecode;
 
-
-import org.bukkit.Bukkit;
-import org.bukkit.entity.Player;
 import org.bukkit.plugin.java.JavaPlugin;
 
-import java.time.Instant;
-import java.util.IdentityHashMap;
-import java.util.Map;
-
-
+/**
+ * SeedProtect - A Paper plugin that protects your farm crops.
+ *
+ * Features:
+ *   - Prevents immature crops from being broken (sneak to override)
+ *   - Auto-replants fully-grown crops when harvested, consuming 1 seed
+ *   - Prevents farmland from being trampled when crops are on it
+ *   - Small XP reward chance with particle effects on harvest
+ *
+ * This plugin uses Paper's BlockDropProvider API for accurate tool-based
+ * drops and Adventure for rich text messaging.
+ */
 public class SeedProtect extends JavaPlugin {
-    private Map<Player, Instant> cropMessage = new IdentityHashMap<>();
-
-    @Override
-    public void onDisable() {
-        cropMessage.clear();
-    }
 
     @Override
     public void onEnable() {
+        /*
+         * Register our single event listener. All the crop-protection logic
+         * lives in SeedProtectorEvents — this class just boots things up.
+         */
+        getServer().getPluginManager().registerEvents(new SeedProtectorEvents(), this);
+        getLogger().info("SeedProtect v" + getPluginMeta().getVersion() + " enabled!");
+    }
 
-        Bukkit.getPluginManager().registerEvents(new SeedProtectorEvents(cropMessage), this);
+    @Override
+    public void onDisable() {
+        getLogger().info("SeedProtect disabled.");
     }
 }

@@ -1,4 +1,6 @@
-target
+build/
+.gradle/
+gradle/wrapper/gradle-wrapper.jar
 .idea
 src/test
-SeedProtect.iml
+*.iml

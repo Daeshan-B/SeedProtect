@@ -1,4 +1,4 @@
 name: SeedProtect
-version: 4.0.1
+version: 2.0.0
 main: dev.thesourcecode.SeedProtect
-api-version: 1.19
+api-version: '1.21'
