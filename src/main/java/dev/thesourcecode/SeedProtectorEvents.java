@@ -13,6 +13,8 @@ import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
 import org.bukkit.event.block.Action;
 import org.bukkit.event.block.BlockBreakEvent;
+import org.bukkit.event.block.BlockFromToEvent;
+import org.bukkit.event.block.BlockGrowEvent;
 import org.bukkit.event.player.PlayerInteractEvent;
 import org.bukkit.inventory.ItemStack;
 
@@ -25,7 +27,10 @@ import java.util.Random;
  * Listens for block-break and player-interact events to:
  *   1. Prevent immature crops from being broken (sneak to bypass).
  *   2. Auto-harvest & replant fully-grown crops, consuming 1 seed.
- *   3. Stop farmland trampling when a crop sits on top.
+ *   3. Right-click harvest of fully-grown crops.
+ *   4. Stop farmland trampling when a crop sits on top.
+ *   5. Protect crops from water/lava flow.
+ *   6. Subtle growth particles when a crop advances a stage.
  *
  * Crops supported: WHEAT, CARROTS, POTATOES, BEETROOTS, NETHER_WART,
  *                   MELON_STEM, PUMPKIN_STEM, TORCHFLOWER_CROP, PITCHER_CROP.
@@ -51,6 +56,8 @@ public class SeedProtectorEvents implements Listener {
     private static final int    EXP_MAX          = 3;      // maximum XP orbs
     private static final int    PARTICLE_COUNT   = 10;
     private static final double PARTICLE_RADIUS  = 0.5;
+    private static final int    GROWTH_PARTICLE_COUNT = 3;    // particles emitted per growth tick
+    private static final boolean GROWTH_PARTICLES      = true; // toggle growth particles on/off
 
     /* ================================================================
      *                         EVENT HANDLERS
@@ -91,22 +98,66 @@ public class SeedProtectorEvents implements Listener {
     }
 
     /**
-     * Called for any player interaction (right-click, left-click, physical).
+     * Handles physical (trample), right-click (harvest / bonemeal) interactions.
      *
-     * We only care about PHYSICAL actions (walking) on farmland that has
-     * a crop growing above it — this prevents trampling.
+     * PHYSICAL       → prevent farmland trampling if a crop is on top.
+     * RIGHT_CLICK    → harvest & replant fully-grown crops;
+     *                   immature crops pass through so bonemeal works normally.
      */
     @EventHandler
     private void onPlayerInteract(PlayerInteractEvent event) {
-        if (event.getAction() != Action.PHYSICAL || !event.hasBlock()) {
+        if (!event.hasBlock() || event.getClickedBlock() == null) return;
+
+        Block  block  = event.getClickedBlock();
+        Action action = event.getAction();
+
+        // ---------- trample protection ----------
+        if (action == Action.PHYSICAL) {
+            if (isCrop(block.getRelative(BlockFace.UP))) {
+                event.setCancelled(true);
+            }
             return;
         }
 
-        Block farmland = event.getClickedBlock();
-        if (farmland == null) return;
+        // ---------- right-click harvest ----------
+        if (action == Action.RIGHT_CLICK_BLOCK && isCrop(block)) {
+            Player  player  = event.getPlayer();
+            Ageable ageable = (Ageable) block.getBlockData();
 
-        // If the block above the farmland is a protected crop, cancel the trample.
-        if (isCrop(farmland.getRelative(BlockFace.UP))) {
+            if (ageable.getAge() == ageable.getMaximumAge()) {
+                autoReplant(player, block);
+                tryDropExperience(block.getLocation(), player);
+                event.setCancelled(true);
+            }
+            // Immature crops fall through → bonemeal works normally.
+        }
+    }
+
+    /**
+     * Fired when a crop naturally grows or is bonemealed to the next stage.
+     * Shows a subtle particle burst if GROWTH_PARTICLES is enabled.
+     */
+    @EventHandler
+    private void onCropGrow(BlockGrowEvent event) {
+        if (!GROWTH_PARTICLES) return;
+
+        Block block = event.getBlock();
+        if (!isCrop(block)) return;
+
+        Location center = block.getLocation().add(0.5, 0.5, 0.5);
+        World world = center.getWorld();
+        if (world == null) return;
+
+        world.spawnParticle(Particle.HAPPY_VILLAGER, center,
+                GROWTH_PARTICLE_COUNT, 0.3, 0.3, 0.3, 0);
+    }
+
+    /**
+     * Prevents water/lava from flowing into and destroying crops.
+     */
+    @EventHandler
+    private void onWaterFlow(BlockFromToEvent event) {
+        if (isCrop(event.getToBlock())) {
             event.setCancelled(true);
         }
     }
@@ -121,8 +172,10 @@ public class SeedProtectorEvents implements Listener {
      * For stems (melon, pumpkin) the block is simply removed — they
      * don't get replanted.  For every other crop we:
      *   1. Collect the drops (affected by the player's held tool).
-     *   2. Consume 1 seed/item for the replant.
-     *   3. Spill everything else on the ground.
+     *   2. If the player holds the matching seed in-hand, consume 1
+     *      from the held stack and drop everything (no seed tax).
+     *      Otherwise, consume 1 seed from the drops themselves.
+     *   3. Spill everything on the ground.
      *   4. Reset the block to its original type (age → 0).
      */
     private void autoReplant(Player player, Block block) {
@@ -131,9 +184,9 @@ public class SeedProtectorEvents implements Listener {
         Material  cropType = block.getType();
 
         /*
-         * Stems — drop their loot (usually 0-3 seeds) and remove the
-         * block.  We don't replant stems because they'd instantly
-         * re-attach to a nearby melon/pumpkin, which feels wrong.
+         * Stems — drop their loot and remove the block.
+         * They don't replant because they'd instantly re-attach to
+         * a nearby melon/pumpkin, which feels wrong.
          */
         if (cropType == Material.MELON_STEM || cropType == Material.PUMPKIN_STEM) {
             for (ItemStack drop : block.getDrops(tool)) {
@@ -145,17 +198,18 @@ public class SeedProtectorEvents implements Listener {
 
         /*
          * Plantable crops — figure out which seed/item is needed,
-         * drop everything except 1 unit of that item, then replant.
+         * collect the drops, consume 1 seed for replanting
+         * (either from the player's hand or from the drops), then replant.
          */
         Material plantMaterial = getPlantMaterial(cropType);
+        boolean plantedFromHand = tryConsumeFromHand(player, plantMaterial);
 
         for (ItemStack drop : block.getDrops(tool)) {
-            if (drop.getType() == plantMaterial) {
+            if (!plantedFromHand && drop.getType() == plantMaterial) {
                 /*
                  * "Spend" 1 seed for the replant:
                  *   - If the stack has 2+, reduce it by 1 and drop the rest.
-                 *   - If the stack only has 1, it is fully consumed — don't
-                 *     drop anything for this entry.
+                 *   - If the stack only has 1, it is fully consumed.
                  */
                 if (drop.getAmount() > 1) {
                     drop.setAmount(drop.getAmount() - 1);
@@ -167,11 +221,25 @@ public class SeedProtectorEvents implements Listener {
             }
         }
 
-        /*
-         * Reset the block to its default state (age 0) so it starts
-         * growing again automatically.
-         */
+        // Reset the block to its default state (age 0) so it regrows.
         block.setType(cropType);
+    }
+
+    /**
+     * If the player is holding {@code seedType} in their main hand,
+     * consume 1 unit from that stack and return true (the replant
+     * seed came from the hand, not the drops).
+     */
+    private boolean tryConsumeFromHand(Player player, Material seedType) {
+        ItemStack hand = player.getInventory().getItemInMainHand();
+        if (hand.getType() != seedType) return false;
+
+        if (hand.getAmount() > 1) {
+            hand.setAmount(hand.getAmount() - 1);
+        } else {
+            player.getInventory().setItemInMainHand(null);
+        }
+        return true;
     }
 
     /**

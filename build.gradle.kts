@@ -5,6 +5,8 @@ plugins {
 group = "dev.thesourcecode"
 version = "2.0.0"
 
+buildDir = file("target")
+
 repositories {
     mavenCentral()
     maven("https://repo.papermc.io/repository/maven-public/")

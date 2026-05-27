@@ -1,33 +1,42 @@
 package dev.thesourcecode;
 
+import net.kyori.adventure.text.Component;
+import net.kyori.adventure.text.format.TextColor;
+import org.bukkit.Bukkit;
 import org.bukkit.plugin.java.JavaPlugin;
 
-/**
- * SeedProtect - A Paper plugin that protects your farm crops.
- *
- * Features:
- *   - Prevents immature crops from being broken (sneak to override)
- *   - Auto-replants fully-grown crops when harvested, consuming 1 seed
- *   - Prevents farmland from being trampled when crops are on it
- *   - Small XP reward chance with particle effects on harvest
- *
- * This plugin uses Paper's BlockDropProvider API for accurate tool-based
- * drops and Adventure for rich text messaging.
- */
 public class SeedProtect extends JavaPlugin {
+
+    private static final TextColor GREEN  = TextColor.color(100, 220, 80);
+    private static final TextColor DIM    = TextColor.color(60, 130, 50);
+    private static final TextColor WHITE  = TextColor.color(200, 200, 200);
 
     @Override
     public void onEnable() {
-        /*
-         * Register our single event listener. All the crop-protection logic
-         * lives in SeedProtectorEvents — this class just boots things up.
-         */
         getServer().getPluginManager().registerEvents(new SeedProtectorEvents(), this);
-        getLogger().info("SeedProtect v" + getPluginMeta().getVersion() + " enabled!");
+
+        String v = getPluginMeta().getVersion();
+        var c = Bukkit.getConsoleSender();
+
+        c.sendMessage(Component.text("  ╔══════════════════════════════════════════╗", DIM));
+        c.sendMessage(
+            Component.text("  ║  ", DIM)
+                .append(Component.text("SeedProtect ", GREEN))
+                .append(Component.text("v" + v, WHITE))
+                .append(Component.text("  │  ", DIM))
+                .append(Component.text("crops are safe", GREEN))
+                .append(Component.text("  ║", DIM))
+        );
+        c.sendMessage(Component.text("  ╚══════════════════════════════════════════╝", DIM));
     }
 
     @Override
     public void onDisable() {
-        getLogger().info("SeedProtect disabled.");
+        var c = Bukkit.getConsoleSender();
+        c.sendMessage(
+            Component.text("  ═══ ", DIM)
+                .append(Component.text("SeedProtect done. Replant again soon! o/", TextColor.color(100, 220, 80)))
+                .append(Component.text(" ═══", DIM))
+        );
     }
 }
