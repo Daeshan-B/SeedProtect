@@ -5,7 +5,7 @@ plugins {
 group = "dev.thesourcecode"
 version = "2.0.0"
 
-buildDir = file("target")
+layout.buildDirectory = file("target")
 
 repositories {
     mavenCentral()
@@ -17,6 +17,7 @@ dependencies {
 }
 
 java {
-    sourceCompatibility = JavaVersion.VERSION_21
-    targetCompatibility = JavaVersion.VERSION_21
+    toolchain {
+        languageVersion = JavaLanguageVersion.of(25)
+    }
 }
