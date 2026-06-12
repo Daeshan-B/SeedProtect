@@ -1,5 +1,6 @@
 package dev.thesourcecode;
 
+import dev.thesourcecode.MessageManager;
 import org.bukkit.Location;
 import org.bukkit.Material;
 import org.bukkit.Particle;
@@ -21,7 +22,7 @@ import org.bukkit.inventory.ItemStack;
 import java.time.Instant;
 import java.util.HashMap;
 import java.util.Map;
-import java.util.Random;
+import java.util.concurrent.ThreadLocalRandom;
 
 /**
  * Listens for block-break and player-interact events to:
@@ -38,15 +39,30 @@ import java.util.Random;
 public class SeedProtectorEvents implements Listener {
 
     /*
+     * Reference to the plugin instance.
+     * Used to check if the plugin is enabled during event handling.
+     */
+    private final SeedProtect plugin;
+
+    /*
      * Tracks the last time each player was told about sneaking.
      * Used to avoid spamming the same message repeatedly.
      */
     private final Map<Player, Instant> messageCooldown = new HashMap<>();
 
-    /*
-     * Shared random instance for XP chance rolls.
+    /**
+     * Creates a new SeedProtectorEvents listener instance.
+     * @param plugin The plugin instance to reference.
      */
-    private final Random random = new Random();
+    public SeedProtectorEvents(SeedProtect plugin) {
+        this.plugin = plugin;
+    }
+
+    /*
+     * ThreadLocal random instance for XP chance rolls.
+     * ThreadLocalRandom is more efficient for per-thread random number generation.
+     */
+    private final ThreadLocalRandom random = ThreadLocalRandom.current();
 
     /* ---- configurable constants ---- */
 
@@ -157,6 +173,8 @@ public class SeedProtectorEvents implements Listener {
      */
     @EventHandler
     private void onWaterFlow(BlockFromToEvent event) {
+        if (!plugin.isEnabled()) return;
+
         if (isCrop(event.getToBlock())) {
             event.setCancelled(true);
         }
@@ -207,7 +225,7 @@ public class SeedProtectorEvents implements Listener {
         for (ItemStack drop : block.getDrops(tool)) {
             if (!plantedFromHand && drop.getType() == plantMaterial) {
                 /*
-                 * "Spend" 1 seed for the replant:
+                 * "Spend" 1 seed for the vreplant:
                  *   - If the stack has 2+, reduce it by 1 and drop the rest.
                  *   - If the stack only has 1, it is fully consumed.
                  */

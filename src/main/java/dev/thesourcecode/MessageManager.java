@@ -12,7 +12,8 @@ import org.bukkit.entity.Player;
  */
 public class MessageManager {
 
-    private static final String PREFIX = "[!] ";
+    /** The message prefix used in all messages. */
+    public static final String PREFIX = "[!]";
 
     /** Green prefix, grey body — used for positive feedback (e.g. XP gained). */
     public static void good(Player player, String message) {
