@@ -18,6 +18,8 @@ import org.bukkit.event.block.BlockFromToEvent;
 import org.bukkit.event.block.BlockGrowEvent;
 import org.bukkit.event.player.PlayerInteractEvent;
 import org.bukkit.inventory.ItemStack;
+import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
 
 import java.time.Instant;
 import java.util.HashMap;
@@ -54,15 +56,11 @@ public class SeedProtectorEvents implements Listener {
      * Creates a new SeedProtectorEvents listener instance.
      * @param plugin The plugin instance to reference.
      */
-    public SeedProtectorEvents(SeedProtect plugin) {
+    public SeedProtectorEvents(@NotNull SeedProtect plugin) {
         this.plugin = plugin;
     }
 
-    /*
-     * ThreadLocal random instance for XP chance rolls.
-     * ThreadLocalRandom is more efficient for per-thread random number generation.
-     */
-    private final ThreadLocalRandom random = ThreadLocalRandom.current();
+
 
     /* ---- configurable constants ---- */
 
@@ -87,12 +85,16 @@ public class SeedProtectorEvents implements Listener {
      * still growing we cancel the break and tell the player to sneak.
      */
     @EventHandler
-    private void onCropBreak(BlockBreakEvent event) {
+    private void onCropBreak(@NotNull BlockBreakEvent event) {
         Block  block  = event.getBlock();
         Player player = event.getPlayer();
 
         // Let sneaking players break any block normally (including immature crops).
         if (player.isSneaking() || !isCrop(block)) {
+            return;
+        }
+
+        if (!(block.getBlockData() instanceof Ageable)) {
             return;
         }
 
@@ -121,7 +123,7 @@ public class SeedProtectorEvents implements Listener {
      *                   immature crops pass through so bonemeal works normally.
      */
     @EventHandler
-    private void onPlayerInteract(PlayerInteractEvent event) {
+    private void onPlayerInteract(@NotNull PlayerInteractEvent event) {
         if (!event.hasBlock() || event.getClickedBlock() == null) return;
 
         Block  block  = event.getClickedBlock();
@@ -154,7 +156,7 @@ public class SeedProtectorEvents implements Listener {
      * Shows a subtle particle burst if GROWTH_PARTICLES is enabled.
      */
     @EventHandler
-    private void onCropGrow(BlockGrowEvent event) {
+    private void onCropGrow(@NotNull BlockGrowEvent event) {
         if (!GROWTH_PARTICLES) return;
 
         Block block = event.getBlock();
@@ -172,7 +174,7 @@ public class SeedProtectorEvents implements Listener {
      * Prevents water/lava from flowing into and destroying crops.
      */
     @EventHandler
-    private void onWaterFlow(BlockFromToEvent event) {
+    private void onWaterFlow(@NotNull BlockFromToEvent event) {
         if (!plugin.isEnabled()) return;
 
         if (isCrop(event.getToBlock())) {
@@ -196,7 +198,7 @@ public class SeedProtectorEvents implements Listener {
      *   3. Spill everything on the ground.
      *   4. Reset the block to its original type (age → 0).
      */
-    private void autoReplant(Player player, Block block) {
+    private void autoReplant(@NotNull Player player, @NotNull Block block) {
         Location center    = block.getLocation().add(0.5, 0.5, 0.5);
         ItemStack tool     = player.getInventory().getItemInMainHand();
         Material  cropType = block.getType();
@@ -223,20 +225,21 @@ public class SeedProtectorEvents implements Listener {
         boolean plantedFromHand = tryConsumeFromHand(player, plantMaterial);
 
         for (ItemStack drop : block.getDrops(tool)) {
-            if (!plantedFromHand && drop.getType() == plantMaterial) {
-                /*
-                 * "Spend" 1 seed for the vreplant:
-                 *   - If the stack has 2+, reduce it by 1 and drop the rest.
-                 *   - If the stack only has 1, it is fully consumed.
-                 */
-                if (drop.getAmount() > 1) {
-                    drop.setAmount(drop.getAmount() - 1);
-                    center.getWorld().dropItem(center, drop);
+            if (drop.getType() == plantMaterial) {
+                if (plantedFromHand) {
+                    // Seed was consumed from hand, don't drop it from drops
+                    continue;
+                } else {
+                    // Seed was from drops, consume 1 for replanting
+                    if (drop.getAmount() > 1) {
+                        drop.setAmount(drop.getAmount() - 1);
+                        center.getWorld().dropItem(center, drop);
+                    }
+                    // else: amount == 1, fully consumed, skip dropping
+                    continue;
                 }
-                // else: amount == 1 → fully consumed, skip dropping.
-            } else {
-                center.getWorld().dropItem(center, drop);
             }
+            center.getWorld().dropItem(center, drop);
         }
 
         // Reset the block to its default state (age 0) so it regrows.
@@ -248,7 +251,7 @@ public class SeedProtectorEvents implements Listener {
      * consume 1 unit from that stack and return true (the replant
      * seed came from the hand, not the drops).
      */
-    private boolean tryConsumeFromHand(Player player, Material seedType) {
+    private boolean tryConsumeFromHand(@NotNull Player player, @NotNull Material seedType) {
         ItemStack hand = player.getInventory().getItemInMainHand();
         if (hand.getType() != seedType) return false;
 
@@ -264,7 +267,7 @@ public class SeedProtectorEvents implements Listener {
      * Gives the player a small XP reward (5 % chance, 1–3 orbs)
      * and shows a particle burst.
      */
-    private void tryDropExperience(Location location, Player player) {
+    private void tryDropExperience(@NotNull Location location, @NotNull Player player) {
         if (random.nextDouble() > EXP_CHANCE) return;
 
         int amount = EXP_MIN + random.nextInt(EXP_MAX - EXP_MIN + 1);
@@ -280,7 +283,7 @@ public class SeedProtectorEvents implements Listener {
     /**
      * Spawns a ring of happy-villager particles above the block.
      */
-    private void spawnParticles(Location location) {
+    private void spawnParticles(@NotNull Location location) {
         Location center = location.clone().add(0.5, 0.5, 0.5);
         World world = center.getWorld();
         if (world == null) return;
@@ -293,7 +296,7 @@ public class SeedProtectorEvents implements Listener {
      * Sends a message to the player, but only if the cooldown period
      * has elapsed.  Prevents chat spam.
      */
-    private void sendCooldownMessage(Player player, String message) {
+    private void sendCooldownMessage(@NotNull Player player, @NotNull String message) {
         Instant now       = Instant.now();
         Instant lastSent  = messageCooldown.get(player);
 
@@ -308,7 +311,7 @@ public class SeedProtectorEvents implements Listener {
      *
      * Covers all standard food crops plus the 1.20 torchflower & pitcher.
      */
-    private boolean isCrop(Block block) {
+    private boolean isCrop(@NotNull Block block) {
         return switch (block.getType()) {
             case WHEAT, CARROTS, POTATOES, BEETROOTS,
                  MELON_STEM, PUMPKIN_STEM, NETHER_WART,
@@ -321,7 +324,7 @@ public class SeedProtectorEvents implements Listener {
      * Maps a crop type → the seed / item that you need to plant it.
      * Returns null for unhandled (shouldn't happen in practice).
      */
-    private Material getPlantMaterial(Material crop) {
+    private @Nullable Material getPlantMaterial(@NotNull Material crop) {
         return switch (crop) {
             case WHEAT           -> Material.WHEAT_SEEDS;
             case CARROTS         -> Material.CARROTS;
